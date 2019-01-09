@@ -13,8 +13,8 @@ import (
 )
 
 type tv struct {
-	Id          int    `json:"id,omitempty`
-	Model       string `json:"model,omitempty`
+	Id          int    `json:"id,omitempty"`
+	Model       string `json:"model,omitempty"`
 	Brand       string `json:"brand,omitempty"`
 	Maker       string `json:"maker,omitempty"`
 	YearOfIssue int    `json:"yearofissue,omitempty"`
@@ -56,7 +56,6 @@ func GetDB() (*sql.DB, error) {
 		dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 			DB_USER, DB_PASSWORD, DB_NAME)
 		d, err := sql.Open("postgres", dbinfo)
-		log.Println("Creating a new connection")
 		if err != nil {
 			return nil, err
 		}
@@ -101,6 +100,7 @@ func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
+	defer rows.Close()
 	for rows.Next() {
 		TV := tv{}
 		err := rows.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count)
@@ -117,6 +117,7 @@ func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(jData)
 }
+
 func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	var TV tv
 	err := json.NewDecoder(r.Body).Decode(&TV)
@@ -129,7 +130,10 @@ func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
-	_ = db.QueryRow("select public.create_tv($1,$2,$3,$4,$5,$6)", TV.Id, TV.Model, TV.Brand, TV.Maker, TV.YearOfIssue, TV.Count)
+	_, err = db.Exec("select public.create_tv($1,$2,$3,$4,$5,$6)", TV.Id, TV.Model, TV.Brand, TV.Maker, TV.YearOfIssue, TV.Count)
+	if err != nil {
+		SetServerErrorProblemDetail(w, err)
+	}
 }
 func DeleteTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -143,14 +147,16 @@ func DeleteTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
-	_ = db.QueryRow("select public.delete_tv($1)", id)
+	_, err = db.Exec("select public.delete_tv($1)", id)
+	if err != nil {
+		SetServerErrorProblemDetail(w, err)
+	}
 }
 
 func main() {
-	var err error = nil
-	db, err = GetDB()
+	db, err := GetDB()
 	checkErr(err)
-	//db.Close()
+	defer db.Close()
 	router := mux.NewRouter()
 	router.HandleFunc("/tv", GetTvsEndpoint).Methods("GET")
 	router.HandleFunc("/tv/{id}", GetTvEndpoint).Methods("GET")
@@ -158,6 +164,7 @@ func main() {
 	router.HandleFunc("/tv/{id}", DeleteTvEndpoint).Methods("DELETE")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
+
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
