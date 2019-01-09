@@ -72,15 +72,13 @@ func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		SetBusinessErrorProblemDetail(w, []Error{Error{Message: "error convert id"}})
 		return
 	}
-	db, err = GetDB()
-	if err != nil {
+	if db, err = GetDB(); err != nil {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
 	row := db.QueryRow("select * from public.get_tv($1)", id)
 	TV := tv{}
-	err = row.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count)
-	if err != nil {
+	if err = row.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count); err != nil {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
@@ -89,8 +87,7 @@ func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 	var err error = nil
-	db, err = GetDB()
-	if err != nil {
+	if db, err = GetDB(); err != nil {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
@@ -103,8 +100,7 @@ func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		TV := tv{}
-		err := rows.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count)
-		if err != nil {
+		if err = rows.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count); err != nil {
 			fmt.Println(err)
 			continue
 		}
@@ -125,13 +121,11 @@ func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		SetBusinessErrorProblemDetail(w, []Error{Error{Message: "error convert tv"}})
 		return
 	}
-	db, err = GetDB()
-	if err != nil {
+	if db, err = GetDB(); err != nil {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
-	_, err = db.Exec("select public.create_tv($1,$2,$3,$4,$5,$6)", TV.Id, TV.Model, TV.Brand, TV.Maker, TV.YearOfIssue, TV.Count)
-	if err != nil {
+	if _, err = db.Exec("select public.create_tv($1,$2,$3,$4,$5,$6)", TV.Id, TV.Model, TV.Brand, TV.Maker, TV.YearOfIssue, TV.Count); err != nil {
 		SetServerErrorProblemDetail(w, err)
 	}
 }
@@ -142,13 +136,11 @@ func DeleteTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		SetBusinessErrorProblemDetail(w, []Error{Error{Message: "error convert id"}})
 		return
 	}
-	db, err = GetDB()
-	if err != nil {
+	if db, err = GetDB(); err != nil {
 		SetServerErrorProblemDetail(w, err)
 		return
 	}
-	_, err = db.Exec("select public.delete_tv($1)", id)
-	if err != nil {
+	if _, err = db.Exec("select public.delete_tv($1)", id); err != nil {
 		SetServerErrorProblemDetail(w, err)
 	}
 }
