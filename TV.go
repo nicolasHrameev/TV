@@ -1,6 +1,8 @@
 package main
 
 import (
+	"TVTestApp/dbconn"
+	"TVTestApp/problemdetail"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -21,65 +23,23 @@ type tv struct {
 	Count       int    `json:"count,omitempty"`
 }
 
-type ValidationError struct {
-	Error string `json:"error,omitempty"`
-}
-
-const (
-	DB_USER       = "postgres"
-	DB_PASSWORD   = "postgres"
-	DB_NAME       = "postgres"
-	BusinessError = "business"
-	ServerError   = "server"
-	defaultType   = "about:blank"
-)
-
-type ProblemDetail struct {
-	Type      string  `json:"type"`
-	Title     *string `json:"title"`
-	Detail    *string `json:"detail"`
-	Status    *int    `json:"status"`
-	Instance  *string `json:"instance"`
-	ErrorType *string `json:"errorType"`
-	Errors    []Error `json:"errors"`
-}
-
-type Error struct {
-	Name    string `json:"name"`
-	Message string `json:"message"`
-}
-
 var db *sql.DB = nil
-
-func GetDB() (*sql.DB, error) {
-	if db == nil {
-		dbinfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
-			DB_USER, DB_PASSWORD, DB_NAME)
-		d, err := sql.Open("postgres", dbinfo)
-		if err != nil {
-			return nil, err
-		}
-		db = d
-	}
-
-	return db, nil
-}
 
 func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		SetBusinessErrorProblemDetail(w, []Error{Error{Message: "error convert id"}})
+		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert id"}})
 		return
 	}
-	if db, err = GetDB(); err != nil {
-		SetServerErrorProblemDetail(w, err)
+	if db, err = dbconn.GetDB(); err != nil {
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	row := db.QueryRow("select * from public.get_tv($1)", id)
 	TV := tv{}
 	if err = row.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count); err != nil {
-		SetServerErrorProblemDetail(w, err)
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	json.NewEncoder(w).Encode(TV)
@@ -87,14 +47,14 @@ func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 	var err error = nil
-	if db, err = GetDB(); err != nil {
-		SetServerErrorProblemDetail(w, err)
+	if db, err = dbconn.GetDB(); err != nil {
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	var tvs []tv
 	rows, err := db.Query(`SELECT * from public.get_tvs()`)
 	if err != nil {
-		SetServerErrorProblemDetail(w, err)
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	defer rows.Close()
@@ -108,7 +68,7 @@ func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	jData, err := json.Marshal(tvs)
 	if err != nil {
-		SetServerErrorProblemDetail(w, err)
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	w.Write(jData)
@@ -118,35 +78,35 @@ func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	var TV tv
 	err := json.NewDecoder(r.Body).Decode(&TV)
 	if err != nil {
-		SetBusinessErrorProblemDetail(w, []Error{Error{Message: "error convert tv"}})
+		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert tv"}})
 		return
 	}
-	if db, err = GetDB(); err != nil {
-		SetServerErrorProblemDetail(w, err)
+	if db, err = dbconn.GetDB(); err != nil {
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	if _, err = db.Exec("select public.create_tv($1,$2,$3,$4,$5,$6)", TV.Id, TV.Model, TV.Brand, TV.Maker, TV.YearOfIssue, TV.Count); err != nil {
-		SetServerErrorProblemDetail(w, err)
+		problemdetail.SetServerErrorProblemDetail(w, err)
 	}
 }
 func DeleteTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		SetBusinessErrorProblemDetail(w, []Error{Error{Message: "error convert id"}})
+		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert id"}})
 		return
 	}
-	if db, err = GetDB(); err != nil {
-		SetServerErrorProblemDetail(w, err)
+	if db, err = dbconn.GetDB(); err != nil {
+		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	if _, err = db.Exec("select public.delete_tv($1)", id); err != nil {
-		SetServerErrorProblemDetail(w, err)
+		problemdetail.SetServerErrorProblemDetail(w, err)
 	}
 }
 
 func main() {
-	db, err := GetDB()
+	db, err := dbconn.GetDB()
 	checkErr(err)
 	defer db.Close()
 	router := mux.NewRouter()
@@ -161,19 +121,4 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-func SetBusinessErrorProblemDetail(w http.ResponseWriter, errors []Error) {
-	ProblemDetail := ProblemDetail{Errors: errors, Type: BusinessError} //and other
-	ProblemDetail.Type = BusinessError
-	jData, _ := json.Marshal(ProblemDetail)
-	w.WriteHeader(http.StatusBadRequest)
-	w.Write(jData)
-}
-func SetServerErrorProblemDetail(w http.ResponseWriter, err error) {
-	log.Printf("errors: %v", err)
-	ProblemDetail := ProblemDetail{Type: ServerError} //and other
-	ProblemDetail.Type = BusinessError
-	jData, _ := json.Marshal(ProblemDetail)
-	w.WriteHeader(http.StatusInternalServerError)
-	w.Write(jData)
 }
