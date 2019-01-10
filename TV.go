@@ -106,8 +106,8 @@ func updateReturns() {
 			select {
 			case <-ticker.C:
 				var wg sync.WaitGroup
-				wg.Add(2) // в группе две горутины
-				readXml := func() {
+				wg.Add(2)
+				readXML := func() {
 					defer wg.Done()
 					tvInfo, err := tv_return_service.ReadXML()
 					if err != nil {
@@ -122,7 +122,7 @@ func updateReturns() {
 						return
 					}
 				}
-				go readXml()
+				go readXML()
 				go writeData()
 				wg.Wait()
 			case <-quit:

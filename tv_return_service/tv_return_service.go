@@ -30,7 +30,11 @@ func ReadXML() (TvXml, error) {
 	}
 	defer xmlFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(xmlFile)
+	byteValue, err := ioutil.ReadAll(xmlFile)
+	if err != nil {
+		fmt.Println(err)
+		return TvXml{}, err
+	}
 
 	var TvXmlInfo TvXml
 	err = xml.Unmarshal(byteValue, &TvXmlInfo)
@@ -63,8 +67,12 @@ func WriteData(TvXmlInfo TvXml) error {
 			fmt.Printf("Successful execute tvs. ID:%v, Count:%v, OldCount:%v\n", TV.ID, count, TV.Count)
 			TvXmlInfo.Tvs[index].Readed = true
 		}
-		modifiedXml, _ := xml.Marshal(TvXmlInfo)
-		err := ioutil.WriteFile(fileName, modifiedXml, 0644)
+		modifiedXml, err := xml.Marshal(TvXmlInfo)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		err = ioutil.WriteFile(fileName, modifiedXml, 0644)
 		if err != nil {
 			fmt.Println(err)
 			return err
