@@ -2,10 +2,9 @@ package main
 
 import (
 	"TVTestApp/dbconn"
+	"TVTestApp/models"
 	"TVTestApp/problemdetail"
-	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,57 +13,31 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type tv struct {
-	Id          int    `json:"id,omitempty"`
-	Model       string `json:"model,omitempty"`
-	Brand       string `json:"brand,omitempty"`
-	Maker       string `json:"maker,omitempty"`
-	YearOfIssue int    `json:"yearofissue,omitempty"`
-	Count       int    `json:"count,omitempty"`
-}
-
-var db *sql.DB = nil
-
 func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
-	if err != nil {
+	if err != nil || id < 0 {
 		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert id"}})
 		return
 	}
-	if db, err = dbconn.GetDB(); err != nil {
-		problemdetail.SetServerErrorProblemDetail(w, err)
-		return
-	}
-	row := db.QueryRow("select * from public.get_tv($1)", id)
-	TV := tv{}
-	if err = row.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count); err != nil {
+	TV, err := dbconn.GetTv(id)
+	if err != nil {
 		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
 	}
 	json.NewEncoder(w).Encode(TV)
-
 }
+
+func add(x int, y int) int {
+	return x + y
+}
+
 func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 	var err error = nil
-	if db, err = dbconn.GetDB(); err != nil {
-		problemdetail.SetServerErrorProblemDetail(w, err)
-		return
-	}
-	var tvs []tv
-	rows, err := db.Query(`SELECT * from public.get_tvs()`)
+	tvs, err := dbconn.GetTvs()
 	if err != nil {
 		problemdetail.SetServerErrorProblemDetail(w, err)
 		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		TV := tv{}
-		if err = rows.Scan(&TV.Id, &TV.Model, &TV.Brand, &TV.Maker, &TV.YearOfIssue, &TV.Count); err != nil {
-			fmt.Println(err)
-			continue
-		}
-		tvs = append(tvs, TV)
 	}
 	jData, err := json.Marshal(tvs)
 	if err != nil {
@@ -75,32 +48,29 @@ func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
-	var TV tv
+	var TV models.TV
 	err := json.NewDecoder(r.Body).Decode(&TV)
 	if err != nil {
 		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert tv"}})
 		return
 	}
-	if db, err = dbconn.GetDB(); err != nil {
-		problemdetail.SetServerErrorProblemDetail(w, err)
+	if validationErrors := ValidateTV(TV); validationErrors != nil {
+		problemdetail.SetBusinessErrorProblemDetail(w, validationErrors)
 		return
 	}
-	if _, err = db.Exec("select public.create_tv($1,$2,$3,$4,$5,$6)", TV.Id, TV.Model, TV.Brand, TV.Maker, TV.YearOfIssue, TV.Count); err != nil {
+	if err = dbconn.CreateTv(TV); err != nil {
 		problemdetail.SetServerErrorProblemDetail(w, err)
 	}
 }
+
 func DeleteTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
-	if err != nil {
+	if err != nil || id < 0 {
 		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert id"}})
 		return
 	}
-	if db, err = dbconn.GetDB(); err != nil {
-		problemdetail.SetServerErrorProblemDetail(w, err)
-		return
-	}
-	if _, err = db.Exec("select public.delete_tv($1)", id); err != nil {
+	if err = dbconn.DeleteTv(id); err != nil {
 		problemdetail.SetServerErrorProblemDetail(w, err)
 	}
 }
@@ -121,4 +91,21 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func ValidateTV(TV models.TV) []problemdetail.Error {
+	errors := []problemdetail.Error{}
+	if len(TV.Maker) < 3 {
+		errors = append(errors, problemdetail.Error{Message: "string length must be more than 3 characters", Name: "TV.Maker"})
+	}
+	if len(TV.Model) < 3 {
+		errors = append(errors, problemdetail.Error{Message: "string length must be more than 3 characters", Name: "TV.Model"})
+	}
+	if TV.YearOfIssue < 2010 {
+		errors = append(errors, problemdetail.Error{Message: "YearOfIssue must be more than 2010", Name: "TV.YearOfIssue"})
+	}
+	if len(errors) > 0 {
+		return errors
+	}
+	return nil
 }
