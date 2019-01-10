@@ -4,6 +4,7 @@ import (
 	"TVTestApp/dbconn"
 	"TVTestApp/models"
 	"TVTestApp/problemdetail"
+	"TVTestApp/tv_return_service"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -15,7 +16,7 @@ import (
 
 func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, err := strconv.Atoi(params["id"])
+	id, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil || id < 0 {
 		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert id"}})
 		return
@@ -26,10 +27,6 @@ func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(TV)
-}
-
-func add(x int, y int) int {
-	return x + y
 }
 
 func GetTvsEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +51,7 @@ func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
 		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert tv"}})
 		return
 	}
-	if validationErrors := ValidateTV(TV); validationErrors != nil {
+	if validationErrors := models.ValidateTV(TV); validationErrors != nil {
 		problemdetail.SetBusinessErrorProblemDetail(w, validationErrors)
 		return
 	}
@@ -65,7 +62,7 @@ func CreateTvEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func DeleteTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, err := strconv.Atoi(params["id"])
+	id, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil || id < 0 {
 		problemdetail.SetBusinessErrorProblemDetail(w, []problemdetail.Error{problemdetail.Error{Message: "error convert id"}})
 		return
@@ -79,6 +76,9 @@ func main() {
 	db, err := dbconn.GetDB()
 	checkErr(err)
 	defer db.Close()
+
+	err = tv_return_service.ReturnTvs()
+
 	router := mux.NewRouter()
 	router.HandleFunc("/tv", GetTvsEndpoint).Methods("GET")
 	router.HandleFunc("/tv/{id}", GetTvEndpoint).Methods("GET")
@@ -91,21 +91,4 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func ValidateTV(TV models.TV) []problemdetail.Error {
-	errors := []problemdetail.Error{}
-	if len(TV.Maker) < 3 {
-		errors = append(errors, problemdetail.Error{Message: "string length must be more than 3 characters", Name: "TV.Maker"})
-	}
-	if len(TV.Model) < 3 {
-		errors = append(errors, problemdetail.Error{Message: "string length must be more than 3 characters", Name: "TV.Model"})
-	}
-	if TV.YearOfIssue < 2010 {
-		errors = append(errors, problemdetail.Error{Message: "YearOfIssue must be more than 2010", Name: "TV.YearOfIssue"})
-	}
-	if len(errors) > 0 {
-		return errors
-	}
-	return nil
 }

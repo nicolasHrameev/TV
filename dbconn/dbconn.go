@@ -28,7 +28,7 @@ func GetDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func GetTv(id int) (models.TV, error) {
+func GetTv(id int64) (models.TV, error) {
 	var err error
 	if db, err = GetDB(); err != nil {
 		return models.TV{}, err
@@ -74,12 +74,23 @@ func CreateTv(TV models.TV) error {
 	return err
 }
 
-func DeleteTv(id int) error {
+func DeleteTv(id int64) error {
 	var err error = nil
 	if db, err = GetDB(); err != nil {
 		return err
 	}
 	if _, err = db.Exec("select public.delete_tv($1)", id); err != nil {
+		return err
+	}
+	return err
+}
+
+func UpdateTvsCount(id int64, count int) error {
+	var err error = nil
+	if db, err = GetDB(); err != nil {
+		return err
+	}
+	if _, err = db.Exec("select public.update_count_tv($1,$2)", id, count); err != nil {
 		return err
 	}
 	return err
