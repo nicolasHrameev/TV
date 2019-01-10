@@ -9,10 +9,14 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
+
+const timerSeconds = 5
 
 func GetTvEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -77,7 +81,7 @@ func main() {
 	checkErr(err)
 	defer db.Close()
 
-	err = tv_return_service.ReturnTvs()
+	updateReturns()
 
 	router := mux.NewRouter()
 	router.HandleFunc("/tv", GetTvsEndpoint).Methods("GET")
@@ -91,4 +95,40 @@ func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func updateReturns() {
+	tvInfoChan := make(chan tv_return_service.TvXml)
+	ticker := time.NewTicker(timerSeconds * time.Second)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				var wg sync.WaitGroup
+				wg.Add(2) // в группе две горутины
+				readXml := func() {
+					defer wg.Done()
+					tvInfo, err := tv_return_service.ReadXML()
+					if err != nil {
+						return
+					}
+					tvInfoChan <- tvInfo
+				}
+				writeData := func() {
+					defer wg.Done()
+					err := tv_return_service.WriteData(<-tvInfoChan)
+					if err != nil {
+						return
+					}
+				}
+				go readXml()
+				go writeData()
+				wg.Wait()
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
