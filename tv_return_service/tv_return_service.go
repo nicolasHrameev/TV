@@ -22,25 +22,25 @@ type TV struct {
 
 const fileName = "tv_returns.xml"
 
-func ReadXML() (TvXml, error) {
+func ReadXML() (interface{}, error) {
 	xmlFile, err := os.Open(fileName)
 	if err != nil {
 		fmt.Println(err)
-		return TvXml{}, err
+		return nil, err
 	}
 	defer xmlFile.Close()
 
 	byteValue, err := ioutil.ReadAll(xmlFile)
 	if err != nil {
 		fmt.Println(err)
-		return TvXml{}, err
+		return nil, err
 	}
 
 	var TvXmlInfo TvXml
 	err = xml.Unmarshal(byteValue, &TvXmlInfo)
 	if err != nil {
 		fmt.Println(err)
-		return TvXml{}, err
+		return nil, err
 	}
 	return TvXmlInfo, err
 }

@@ -27,6 +27,10 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+func NewError(name, message string) Error {
+	return Error{Name: name, Message: message}
+}
+
 func SetBusinessErrorProblemDetail(w http.ResponseWriter, errors []Error) {
 	ProblemDetail := ProblemDetail{Errors: errors, Type: BusinessError} //and other
 	ProblemDetail.Type = BusinessError

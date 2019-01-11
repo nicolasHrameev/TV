@@ -17,15 +17,15 @@ type CountInfo struct {
 	OldCount int   `json:"count,omitempty"`
 }
 
-func ValidateTV(TV TV) []problemdetail.Error {
+func ValidateTV(tv TV) []problemdetail.Error {
 	errors := []problemdetail.Error{}
-	if len(TV.Maker) < 3 {
+	if len(tv.Maker) < 3 {
 		errors = append(errors, problemdetail.Error{Message: "string length must be more than 3 characters", Name: "TV.Maker"})
 	}
-	if len(TV.Model) < 2 {
+	if len(tv.Model) < 2 {
 		errors = append(errors, problemdetail.Error{Message: "string length must be more than 3 characters", Name: "TV.Model"})
 	}
-	if TV.YearOfIssue < 2010 {
+	if tv.YearOfIssue < 2010 {
 		errors = append(errors, problemdetail.Error{Message: "YearOfIssue must be more than 2010", Name: "TV.YearOfIssue"})
 	}
 	if len(errors) > 0 {
